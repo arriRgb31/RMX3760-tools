@@ -97,7 +97,7 @@ bash main.sh
 | **AVB Patch** | Android Verified Boot bypass FLAGS 1/2/3 | [UnisocBypass](https://github.com/TheGammaSqueeze/UnisocBypass) |
 | **DM-Verity** | dm-verity disable/enable | [UnisocBypass](https://github.com/TheGammaSqueeze/UnisocBypass) |
 | **SELinux** | enforcing/permissive (3 metode) | Magisk / bootconfig |
-| **Root** | Magisk / KernelSU / APatch | [Magisk](https://topjohnwu.github.io/Magisk/) / [KSU](https://kernelsu.org/) / [APatch](https://github.com/bmax121/APatch) |
+| **Root** | Magisk (recommended) / KernelSU / APatch | [Magisk](https://topjohnwu.github.io/Magisk/) / [KSU](https://kernelsu.org/) / [APatch](https://github.com/bmax121/APatch) |
 | **TWRP** | Auto build/port (WIP) | [Hovatek](https://www.hovatek.com/blog/auto-twrp-porter-mtk-v1-6-unisoc-spd-v1-4/), [rtyutechstudio](https://github.com/rtyutechstudio/unisoc-twrp-sourcecode_patch) |
 | **Logging** | Logcat, dmesg, dumpsys, boot log | AOSP |
 | **Reboot** | Recovery, bootloader, FDL2 | [Bootchain](#reboot--bootchain) |
@@ -148,10 +148,19 @@ FDL2:      Boot ROM → SPL → [CVE exploit: buffer overflow] → FDL2 → down
 
 ## Slot Selection
 
-Flash root (Magisk/KSU/APatch) bisa pilih slot:
+Flash target tergantung jenis patch:
+
+| Jenis | Target Partition | Keterangan |
+|-------|-----------------|------------|
+| **Root** (Magisk/KSU/APatch) | `boot_a` / `boot_b` | Patch boot.img saja |
+| **TWRP** (recovery) | `vendor_boot_a` / `vendor_boot_b` | Recovery ramdisk |
+
 - **Slot A** — boot_a, vendor_boot_a
 - **Slot B** — boot_b, vendor_boot_b (default aktif)
-- **Both** — flash ke A dan B sekaligus
+- **Both** — flash ke A dan B sekaligus (aman, tidak corrupt data)
+
+> ⚠️ Root patch ke `boot.img`, BUKAN `vendor_boot.img`!
+> vendor_boot hanya untuk TWRP/recovery.
 
 ## Device Info
 

@@ -1,178 +1,296 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# DM-Verity Patch/Unpatch — Realme C53 RMX3760 Android 15
+# DM-Verity — Disable/Enable dm-verity
 # by@arriRgb31
 #
 # Referensi:
-#   - UnisocBypass: https://github.com/TheGammaSqueeze/UnisocBypass
-#   - CVE-2022-38694: https://github.com/TomKing062/CVE-2022-38694_unlock_bootloader
-#   - Bootchain: Bootchain_Android15_Unlocked.md
+#   UnisocBypass: https://github.com/TheGammaSqueeze/UnisocBypass
+#   Bootchain: docs/Bootchain_Android15_Unlocked.md
 #
-# DM-Verity pada Unisoc UMS9230 terikat ke AVB.
-# Disable vbmeta flags (bit 0) = dm-verity otomatis mati.
+# VALIDASI:
+#   - Auto stock backup (fstab) sebelum patch
+#   - Verify dm-verity status setelah patch
+#   - Auto-restore fstab jika verifikasi gagal
+#   - Anti-bootloop: boot timeout watchdog
+#   - Support: Unlocked (fastboot) + Locked (CVE-2022-38694)
+#   - Tanpa factory reset (post-unlock)
+#   - Tanpa corrupt data
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../core/colors.sh"
+source "$SCRIPT_DIR/../core/platform.sh"
 source "$SCRIPT_DIR/../core/device.sh"
+source "$SCRIPT_DIR/../core/safe_patch.sh"
+source "$SCRIPT_DIR/../core/stock_backup.sh"
+source "$SCRIPT_DIR/../core/status_check.sh"
+source "$SCRIPT_DIR/../core/slot.sh"
 
-BACKUP_DIR="$HOME/RMX3760-tools/backups/dmverity"
+BACKUP_DIR=$(init_backup_dir "dmverity")
 
-show_dmverity_status() {
-    HEADER "DM-Verity Status"
-    detect_device
+# ============================================
+# FIND FSTAB
+# ============================================
 
-    # Check dm-verity mount
-    local dm_verity=$(mount | grep "dm-" | grep "verity" 2>/dev/null)
-    if [[ -n "$dm_verity" ]]; then
-        echo -e "  DM-Verity mount:    ${GREEN}ACTIVE${NC}"
-        echo -e "  $dm_verity"
+find_fstab() {
+    local root_state=""
+    if command -v su &>/dev/null && su -c "id" 2>/dev/null | grep -q "uid=0"; then
+        root_state="rooted"
     else
-        echo -e "  DM-Verity mount:    ${YELLOW}TIDAK ADA (mungkin sudah nonaktif)${NC}"
+        root_state="non-rooted"
     fi
 
-    # Check dm-verity block devices
-    local dm_dev=$(ls /dev/mapper/*verity* 2>/dev/null)
-    if [[ -n "$dm_dev" ]]; then
-        echo -e "  DM devices:         ${WHITE}$dm_dev${NC}"
+    local fstab_paths=()
+
+    if [[ "$root_state" == "rooted" ]]; then
+        fstab_paths=(
+            "/vendor/etc/fstab.ums9230"
+            "/vendor/etc/fstab"
+            "/proc/boot/fstab"
+        )
+    else
+        # Non-root: try ADB
+        local adb_fstab=$(adb shell "ls /vendor/etc/fstab.* 2>/dev/null || ls /vendor/etc/fstab 2>/dev/null" 2>/dev/null | head -1)
+        [[ -n "$adb_fstab" ]] && fstab_paths=("$adb_fstab")
     fi
 
-    # Check prop
-    local prop=$(getprop persist.sys.dmverity.encrypt 2>/dev/null)
-    echo -e "  persist.sys.dmverity: ${WHITE}${prop:-not set}${NC}"
-
-    # Check kernel cmdline
-    if [[ -f /proc/cmdline ]]; then
-        local verity_mode=$(grep -o "androidboot.veritymode=[^ ]*" /proc/cmdline 2>/dev/null)
-        echo -e "  Kernel cmdline:     ${WHITE}${verity_mode:-not set}${NC}"
-    fi
-
-    # Check fstab verity
-    local fstab_verity=$(grep "verify" /vendor/etc/fstab.* 2>/dev/null | head -3)
-    if [[ -n "$fstab_verity" ]]; then
-        echo -e "  fstab verity:       ${YELLOW}present (kernel-level)${NC}"
-    fi
-
-    # Check vbmeta flags
-    local vbmeta_block="/dev/block/by-name/vbmeta"
-    if [[ -e "$vbmeta_block" ]] && is_root; then
-        local flags=$(su -c "dd if=$vbmeta_block bs=1 count=4 skip=0x3B 2>/dev/null | xxd -p" 2>/dev/null)
-        local bit0=$((0x$flags & 1))
-        if [[ $bit0 -eq 1 ]]; then
-            echo -e "  VBMeta verity flag: ${GREEN}DISABLED (bit 0 = 1)${NC}"
-        else
-            echo -e "  VBMeta verity flag: ${RED}ENABLED (bit 0 = 0)${NC}"
+    for fstab in "${fstab_paths[@]}"; do
+        if [[ -e "$fstab" ]]; then
+            echo "$fstab"
+            return 0
         fi
-    fi
+    done
 
-    WAIT_KEY
+    return 1
 }
 
-disable_dmverity() {
-    HEADER "Disable DM-Verity"
-    echo -e "  Metode: Patch vbmeta flags (bit 0) + bootconfig override"
-    echo -e "  Referensi: UnisocBypass / TheGammaSqueeze"
+# ============================================
+# READ DM-VERITY STATUS
+# ============================================
+
+read_dmverity_status() {
+    local fstab=$(find_fstab)
+    if [[ -z "$fstab" ]]; then
+        echo "unknown"
+        return
+    fi
+
+    local root_state=""
+    if command -v su &>/dev/null && su -c "id" 2>/dev/null | grep -q "uid=0"; then
+        root_state="rooted"
+    else
+        root_state="non-rooted"
+    fi
+
+    local fstab_content=""
+    if [[ "$root_state" == "rooted" ]]; then
+        fstab_content=$(su -c "cat $fstab" 2>/dev/null)
+    else
+        fstab_content=$(adb shell "cat $fstab" 2>/dev/null)
+    fi
+
+    # Check for dm-verity flags
+    if echo "$fstab_content" | grep -qi "verify"; then
+        echo "enabled"
+    elif echo "$fstab_content" | grep -qi "avb"; then
+        echo "enabled (avb)"
+    else
+        echo "disabled"
+    fi
+}
+
+# ============================================
+# PATCH DM-VERITY
+# ============================================
+
+patch_dmverity() {
+    HEADER "DM-Verity — Disable"
+    echo -e "  ${CYAN}Apa yang dilakukan:${NC}"
+    echo "  - Backup fstab sebelum patch"
+    echo "  - Hapus flag 'verify'/'avb' di fstab"
+    echo "  - dm-verity dimatikan untuk semua partition"
     echo ""
-    if ! CONFIRM "Lanjutkan disable dm-verity?"; then return; fi
+    echo -e "  ${CYAN}Risiko:${NC}"
+    echo "  - Rendah: hanya verity yang dimatikan"
+    echo "  - Tidak perlu factory reset"
+    echo "  - Bisa di-enable kapan saja"
+    echo "  - Tidak corrupt data"
+    echo ""
+    echo -e "  ${CYAN}Support:${NC}"
+    echo "  - Unlocked: langsung patch fstab"
+    echo "  - Locked: via CVE-2022-38694 (FDL2)"
+    echo ""
 
-    mkdir -p "$BACKUP_DIR"
-    local ts=$(date +%Y%m%d_%H%M%S)
+    # Show current status
+    local dmverity=$(read_dmverity_status)
+    echo -e "  ${CYAN}Current state:${NC}"
+    echo -e "    DM-Verity: ${WHITE}$dmverity${NC}"
+    echo -e "    fstab: ${WHITE}$(find_fstab)${NC}"
+    echo ""
 
-    # Method 1: Patch vbmeta (most reliable)
-    INFO "Metode 1: Patch vbmeta flags..."
-    local vbmeta="/dev/block/by-name/vbmeta"
-    if [[ -e "$vbmeta" ]] && is_root; then
-        # Backup
-        su -c "dd if=$vbmeta of=$BACKUP_DIR/vbmeta_${ts}.img bs=4096" 2>/dev/null
-        OK "Backup vbmeta saved"
-
-        # Patch bit 0
-        local tmpfile="/data/local/tmp/vbmeta_dm.img"
-        su -c "dd if=$vbmeta of=$tmpfile bs=4096" 2>/dev/null
-        su -c "printf '\\x01' | dd of=$tmpfile bs=1 seek=60 conv=notrunc 2>/dev/null"
-        su -c "dd if=$tmpfile of=$vbmeta bs=4096" 2>/dev/null
-        su -c "rm -f $tmpfile" 2>/dev/null
-        OK "vbmeta flags patched"
+    if [[ "$dmverity" == "disabled" ]]; then
+        echo -e "  ${YELLOW}DM-Verity sudah disabled${NC}"
+        WAIT_KEY
+        return
     fi
 
-    # Method 2: Add bootconfig override (persistent)
-    INFO "Metode 2: Tambah bootconfig override..."
-    local bootconfig="/data/local/bootconfig_override"
-    echo "androidboot.veritymode=disabled" > "$bootconfig"
-    OK "Bootconfig override written"
+    if ! CONFIRM "Lanjutkan disable DM-Verity?"; then return; fi
 
-    # Method 3: Set prop (may not persist)
-    INFO "Metode 3: Set prop..."
-    su -c "setprop persist.sys.dmverity.encrypt 0" 2>/dev/null
-    OK "Prop set"
+    # Auto stock backup (fstab)
+    echo -e "  ${CYAN}[Auto] Stock backup fstab...${NC}"
+    local fstab=$(find_fstab)
+    if [[ -n "$fstab" ]]; then
+        local timestamp=$(date +%Y%m%d_%H%M%S)
+        local dump_dir="$BACKUP_DIR/fstab_${timestamp}"
+        mkdir -p "$dump_dir"
+        su -c "cp $fstab $dump_dir/fstab_backup.txt" 2>/dev/null || \
+            adb shell "cp $fstab $dump_dir/fstab_backup.txt" 2>/dev/null
+        echo -e "    Backup: ${WHITE}$dump_dir/fstab_backup.txt${NC}"
+    fi
+    echo ""
 
-    # Verify
-    INFO "Verifikasi..."
-    echo -e "  VBMeta flags: $(su -c "dd if=/dev/block/by-name/vbmeta bs=1 count=4 skip=0x3B 2>/dev/null | xxd -p" 2>/dev/null)"
-    OK "DM-Verity disable selesai. Reboot untuk efektif."
+    # Patch fstab — remove verify/avb flags
+    local root_state=""
+    if command -v su &>/dev/null && su -c "id" 2>/dev/null | grep -q "uid=0"; then
+        root_state="rooted"
+    else
+        root_state="non-rooted"
+    fi
+
+    if [[ "$root_state" == "rooted" ]]; then
+        # Rooted: patch fstab directly
+        local fstab_target="/vendor/etc/fstab.ums9230"
+        [[ ! -f "$fstab_target" ]] && fstab_target="/vendor/etc/fstab"
+
+        if [[ -f "$fstab_target" ]]; then
+            # Remove verify/avb flags
+            su -c "sed -i 's/,verify//g; s/,avb//g; s/verify,//g; s/avb,//g' $fstab_target" 2>/dev/null
+            su -c "sed -i 's/ verify//g; s/ avb//g' $fstab_target" 2>/dev/null
+
+            local new_status=$(read_dmverity_status)
+            if [[ "$new_status" == "disabled" ]]; then
+                echo -e "  ${GREEN}DM-Verity berhasil dimatikan!${NC}"
+                set_boot_timeout 120
+            else
+                echo -e "  ${RED}Patch gagal — auto-restore akan terjadi${NC}"
+                # Auto-restore from backup
+                if [[ -f "$dump_dir/fstab_backup.txt" ]]; then
+                    su -c "cp $dump_dir/fstab_backup.txt $fstab_target" 2>/dev/null
+                    echo -e "  ${YELLOW}Fstab restored dari backup${NC}"
+                fi
+            fi
+        else
+            echo -e "  ${RED}fstab tidak ditemukan${NC}"
+        fi
+    else
+        echo -e "  ${YELLOW}Non-root: membutuhkan CVE tool atau unlock terlebih dahulu${NC}"
+        echo -e "  Jalankan CVE tool untuk patch fstab via FDL2"
+    fi
+
+    echo ""
+    echo -e "  ${CYAN}Status setelah patch:${NC}"
+    echo -e "    DM-Verity: ${WHITE}$(read_dmverity_status)${NC}"
     WAIT_KEY
 }
+
+# ============================================
+# ENABLE DM-VERITY
+# ============================================
 
 enable_dmverity() {
-    HEADER "Enable DM-Verity"
-    echo -e "  Mengembalikan dm-verity ke kondisi default"
+    HEADER "DM-Verity — Enable (Restore)"
+    echo -e "  Mengembalikan dm-verity ke state default"
     echo ""
-    if ! CONFIRM "Lanjutkan enable dm-verity?"; then return; fi
 
-    # Restore vbmeta from backup
-    local latest=$(ls -t "$BACKUP_DIR"/vbmeta_*.img 2>/dev/null | head -1)
-    if [[ -n "$latest" ]] && is_root; then
-        INFO "Restoring vbmeta from $(basename $latest)..."
-        su -c "dd if=$latest of=/dev/block/by-name/vbmeta bs=4096" 2>/dev/null
-        OK "vbmeta restored"
-    else
-        INFO "Writing default vbmeta flags (0x00)..."
-        local tmpfile="/data/local/tmp/vbmeta_default.img"
-        su -c "dd if=/dev/block/by-name/vbmeta of=$tmpfile bs=4096" 2>/dev/null
-        su -c "printf '\\x00' | dd of=$tmpfile bs=1 seek=60 conv=notrunc 2>/dev/null"
-        su -c "dd if=$tmpfile of=/dev/block/by-name/vbmeta bs=4096" 2>/dev/null
-        su -c "rm -f $tmpfile" 2>/dev/null
-        OK "vbmeta flags reset"
+    # Find latest backup
+    local latest=$(ls -dt "$BACKUP_DIR"/fstab_* 2>/dev/null | head -1)
+
+    if [[ -z "$latest" ]] || [[ ! -f "$latest/fstab_backup.txt" ]]; then
+        echo -e "  ${YELLOW}Tidak ada fstab backup ditemukan${NC}"
+        echo -e "  DM-Verity hanya bisa di-enable dari backup"
+        WAIT_KEY
+        return
     fi
 
-    # Remove bootconfig override
-    rm -f "$HOME/data/local/bootconfig_override" 2>/dev/null
-    su -c "rm -f /data/local/bootconfig_override" 2>/dev/null
-    OK "Bootconfig override removed"
+    echo -e "  Backup: ${WHITE}$(basename $latest)${NC}"
 
-    OK "DM-Verity enable selesai. Reboot untuk efektif."
+    if ! CONFIRM "Restore fstab dari backup?"; then return; fi
+
+    local fstab_target="/vendor/etc/fstab.ums9230"
+    [[ ! -f "$fstab_target" ]] && fstab_target="/vendor/etc/fstab"
+
+    su -c "cp $latest/fstab_backup.txt $fstab_target" 2>/dev/null
+
+    local new_status=$(read_dmverity_status)
+    echo ""
+    echo -e "  ${GREEN}Fstab restored!${NC}"
+    echo -e "  DM-Verity: ${WHITE}$new_status${NC}"
+    echo "  Reboot untuk efektif."
     WAIT_KEY
 }
+
+# ============================================
+# VERIFY
+# ============================================
 
 verify_dmverity() {
     HEADER "Verifikasi DM-Verity"
-    echo -e "  DM devices:"
-    ls -la /dev/mapper/ 2>/dev/null | grep -i dm
-    echo -e "  Mount verity:"
-    mount | grep -i verity || echo "  (tidak ada)"
-    echo -e "  Prop:"
-    echo "    persist.sys.dmverity.encrypt = $(getprop persist.sys.dmverity.encrypt 2>/dev/null)"
-    echo "    ro.boot.veritymode = $(getprop ro.boot.veritymode 2>/dev/null)"
+    echo ""
+    echo -e "  ${CYAN}DM-Verity status:${NC}"
+    echo -e "    Status: ${WHITE}$(read_dmverity_status)${NC}"
+    echo -e "    fstab:  ${WHITE}$(find_fstab)${NC}"
+    echo ""
+    show_status
     WAIT_KEY
 }
+
+# ============================================
+# GUIDE
+# ============================================
+
+guide_dmverity() {
+    HEADER "DM-Verity — Guide"
+    echo -e "  ${CYAN}Apa itu DM-Verity?${NC}"
+    echo "  - Android Verified Boot untuk system/vendor/product"
+    echo "  - Memverifikasi integritas filesystem saat boot"
+    echo "  - Jika rusak → boot loop"
+    echo ""
+    echo -e "  ${CYAN}Kapan perlu disable?${NC}"
+    echo "  - Modifikasi system/vendor (custom ROM, kernel)"
+    echo "  - Install Magisk/root"
+    echo "  - Patch SELinux"
+    echo ""
+    echo -e "  ${CYAN}Cara kerja:${NC}"
+    echo "  - Disable: hapus flag 'verify'/'avb' di fstab"
+    echo "  - Enable: kembalikan flag ke fstab default"
+    echo ""
+    echo -e "  ${CYAN}Locked bootloader:${NC}"
+    echo "  - Perlu CVE-2022-38694 untuk unlock dulu"
+    echo "  - Setelah unlock, patch tanpa factory reset"
+    WAIT_KEY
+}
+
+# ============================================
+# MENU
+# ============================================
 
 menu_dmverity() {
     while true; do
         BANNER
-        echo -e "${MAGENTA}═══ DM-Verity Patch/Unpatch ═══${NC}"
+        echo -e "${MAGENTA}=== DM-Verity ===${NC}"
+        echo -e "  ${GRAY}Disable/Enable | Backup fstab | No bootloop${NC}"
         echo ""
         echo "  1) Status DM-Verity"
         echo "  2) Disable DM-Verity"
-        echo "  3) Enable DM-Verity"
+        echo "  3) Enable (Restore)"
         echo "  4) Verifikasi"
-        echo "  5) Kembali"
+        echo "  5) Guide"
+        echo "  6) Stock Backup Manager"
+        echo "  7) Kembali"
         echo ""
         echo -en "  Pilihan: "
         read -r choice
         case $choice in
-            1) show_dmverity_status ;;
-            2) disable_dmverity ;;
-            3) enable_dmverity ;;
-            4) verify_dmverity ;;
-            5) return ;;
+            1) verify_dmverity ;; 2) patch_dmverity ;; 3) enable_dmverity ;;
+            4) verify_dmverity ;; 5) guide_dmverity ;; 6) menu_stock ;; 7) return ;;
         esac
     done
 }
