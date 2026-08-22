@@ -2,29 +2,49 @@
 
 Tool suite untuk **Realme C53 (RMX3760)** — Unisoc UMS9230 T612 — Android 15
 
-**Target environment: Windows (Git Bash / MSYS2 / WSL)**
-Dikembangkan di Termux (Android), digunakan di Windows.
-
 > **Status: Tools dalam pengembangan / percobaan.**
 > Belum stabil, banyak yang perlu dites dan diperbaiki.
 
-## Features
+---
 
-| Tool | Fungsi | Referensi |
-|------|--------|-----------|
-| Unlock/Relock | CVE-2022-38694 bootloader exploit | [TomKing](https://github.com/TomKing062/CVE-2022-38694_unlock_bootloader), [Gopartner](https://github.com/Gopartner/realme-c53-unlock-root) |
-| AVB Patch | Android Verified Boot bypass FLAGS 1/2/3 | [UnisocBypass](https://github.com/TheGammaSqueeze/UnisocBypass) |
-| DM-Verity | dm-verity disable/enable | [UnisocBypass](https://github.com/TheGammaSqueeze/UnisocBypass) |
-| SELinux | enforcing/permissive (3 metode) | Magisk / bootconfig |
-| Root | Magisk / KernelSU / APatch | [Magisk](https://topjohnwu.github.io/Magisk/) / [KSU](https://kernelsu.org/) / [APatch](https://github.com/bmax121/APatch) |
-| TWRP | Auto build/port (WIP) | [Hovatek](https://www.hovatek.com/blog/auto-twrp-porter-mtk-v1-6-unisoc-spd-v1-4/), [rtyutechstudio](https://github.com/rtyutechstudio/unisoc-twrp-sourcecode_patch) |
-| Logging | Logcat, dmesg, dumpsys, boot log | AOSP |
-| Reboot | Recovery, bootloader, FDL2 | [Bootchain](#reboot--bootchain) |
-| ADB/Fastboot | AOSP platform tools + Unisoc drivers | [AOSP](https://developer.android.com/tools/releases/platform-tools) |
+```
+╔══════════════════════════════════════════════════════════════╗
+║                    ⚠ PERINGATAN                              ║
+║                                                              ║
+║  Menggunakan tools ini berarti Anda SIAP dengan risiko:      ║
+║                                                              ║
+║  • BRICK PERMANEN — device tidak bisa dinyalakan             ║
+║  • BOOTLOOP — device stuck di logo / restart terus           ║
+║  • DATA HILANG — semua data terhapus                         ║
+║  • GARANSI HANGUS — garansi resmi tidak berlaku              ║
+║  • KERUSAKAN HARDWARE — komponen bisa rusak                  ║
+║                                                              ║
+║  TIDAK ADA JAMINAN. Semua risiko ditanggung sendiri.         ║
+║  Pastikan Anda tahu apa yang dilakukan SEBELUM memulai.      ║
+╚══════════════════════════════════════════════════════════════╝
+```
 
 ## Quick Start
 
+### Windows (CMD / PowerShell) — Recommended
+
+```cmd
+git clone https://github.com/arriRgb31/RMX3760-tools.git
+cd RMX3760-tools
+setup\setup_windows.bat
+rmx3760.bat
+```
+
+atau PowerShell:
+
+```powershell
+git clone https://github.com/arriRgb31/RMX3760-tools.git
+cd RMX3760-tools
+.\rmx3760.ps1
+```
+
 ### Windows (Git Bash / MSYS2)
+
 ```bash
 git clone https://github.com/arriRgb31/RMX3760-tools.git
 cd RMX3760-tools
@@ -32,20 +52,68 @@ bash setup/setup_windows.sh
 bash main.sh
 ```
 
-### Windows (WSL)
-```bash
-git clone https://github.com/arriRgb31/RMX3760-tools.git
-cd RMX3760-tools
-bash main.sh
-```
-
 ### Development (Termux)
+
 ```bash
 git clone https://github.com/arriRgb31/RMX3760-tools.git
 cd RMX3760-tools
 bash setup/setup_termux.sh
 bash main.sh
 ```
+
+---
+
+## Kompatibilitas
+
+> [Lihat docs/KOMPATIBILITAS.md](docs/KOMPATIBILITAS.md) untuk tabel lengkap.
+
+### Device UNLOCKED (bootloader sudah unlock)
+
+| Tool | Status | Factory Reset |
+|------|--------|---------------|
+| ADB/Fastboot | ✅ | Tidak |
+| AVB Patch (L1/L2/L3) | ✅ | Tidak |
+| DM-Verity disable | ✅ | Tidak |
+| SELinux permissive | ✅ | Tidak |
+| Magisk/KernelSU/APatch | ✅ | Tidak |
+| TWRP | ⚠️ WIP | Tidak |
+
+### Device LOCKED (bootloader belum unlock)
+
+| Tool | Status | Factory Reset |
+|------|--------|---------------|
+| CVE-2022-38694 unlock | ✅ | **Ya** |
+| CVE-2022-38694 FDL2 bypass | ✅ | Tidak |
+| AVB Patch via CVE | ✅ | Tidak |
+| Root (post-unlock) | ⚠️ Setelah unlock | Tidak |
+
+---
+
+## Features
+
+| Tool | Fungsi | Referensi |
+|------|--------|-----------|
+| **Unlock/Relock** | CVE-2022-38694 bootloader exploit | [TomKing](https://github.com/TomKing062/CVE-2022-38694_unlock_bootloader), [Gopartner](https://github.com/Gopartner/realme-c53-unlock-root) |
+| **AVB Patch** | Android Verified Boot bypass FLAGS 1/2/3 | [UnisocBypass](https://github.com/TheGammaSqueeze/UnisocBypass) |
+| **DM-Verity** | dm-verity disable/enable | [UnisocBypass](https://github.com/TheGammaSqueeze/UnisocBypass) |
+| **SELinux** | enforcing/permissive (3 metode) | Magisk / bootconfig |
+| **Root** | Magisk / KernelSU / APatch | [Magisk](https://topjohnwu.github.io/Magisk/) / [KSU](https://kernelsu.org/) / [APatch](https://github.com/bmax121/APatch) |
+| **TWRP** | Auto build/port (WIP) | [Hovatek](https://www.hovatek.com/blog/auto-twrp-porter-mtk-v1-6-unisoc-spd-v1-4/), [rtyutechstudio](https://github.com/rtyutechstudio/unisoc-twrp-sourcecode_patch) |
+| **Logging** | Logcat, dmesg, dumpsys, boot log | AOSP |
+| **Reboot** | Recovery, bootloader, FDL2 | [Bootchain](#reboot--bootchain) |
+| **ADB/Fastboot** | AOSP platform tools + Unisoc drivers | [AOSP](https://developer.android.com/tools/releases/platform-tools) |
+
+## Tools yang Diunduh (via Setup)
+
+| Tool | Source | Platform | Fungsi |
+|------|--------|----------|--------|
+| **AOSP Platform Tools** | Google | Win/Linux | adb.exe, fastboot.exe |
+| **CVE-2022-38694** | TomKing | Windows | Unlock + FDL2 bypass (RMX3760 khusus) |
+| **spreadtrum_flash** | TomKing | Termux | spd_dump flashing |
+| **Unisoc USB Driver** | Spreadtrum | Windows | USB driver (VID 0x1782) |
+| **termux-adb** | Termux | Termux | ADB non-root |
+
+---
 
 ## Reboot — Bootchain
 
@@ -87,38 +155,61 @@ Flash root (Magisk/KSU/APatch) bisa pilih slot:
 
 ## Device Info
 
-- **Model:** Realme C53 RMX3760
-- **SoC:** Unisoc UMS9230 (T612)
-- **Android:** 15
-- **Boot header:** v4, virtual A/B
-- **Slot:** A/B (dynamic — detect saat runtime)
-- **Unisoc VID:** 0x1782
+| Property | Value |
+|----------|-------|
+| Model | Realme C53 RMX3760 |
+| SoC | Unisoc UMS9230 (T612) |
+| Android | 15 |
+| Boot header | v4, virtual A/B |
+| Slot | A/B (dynamic) |
+| Unisoc VID | 0x1782 |
 
 ## Structure
 
 ```
 RMX3760-tools/
-├── main.sh              # Main launcher
+├── main.sh                    # Main launcher (bash)
+├── rmx3760.bat                # Main launcher (Windows CMD)
+├── rmx3760.ps1                # Main launcher (PowerShell)
 ├── core/
-│   ├── colors.sh        # UI colors
-│   ├── platform.sh      # Platform detection (Windows/Termux/Linux)
-│   ├── device.sh        # Device detect
-│   ├── slot.sh          # Slot A/B/Both selection
-│   └── adb_setup.sh     # ADB/Fastboot + drivers
-├── unlock/unlock.sh     # CVE-2022-38694
-├── avb/avb_patch.sh     # AVB FLAGS
-├── dmverity/dmverity.sh # DM-Verity
-├── selinux/selinux.sh   # SELinux
-├── root/                # Magisk/KSU/APatch
-├── twrp/auto_twrp.sh    # TWRP (WIP)
-├── logging/logger.sh    # Runtime logs
-├── reboot/reboot.sh     # Reboot + FDL2
-├── help/help.sh         # Professional help
+│   ├── colors.sh              # UI colors
+│   ├── platform.sh            # Platform detection
+│   ├── device.sh              # Device detect
+│   ├── slot.sh                # Slot A/B/Both selection
+│   ├── safe_patch.sh          # Anti-bootloop framework
+│   └── adb_setup.sh           # ADB/Fastboot + drivers
+├── unlock/
+│   ├── unlock.sh              # CVE-2022-38694 (bash)
+│   └── flash_unlock.bat       # CVE unlock (Windows)
+├── avb/avb_patch.sh           # AVB FLAGS + safe_patch
+├── dmverity/dmverity.sh       # DM-Verity + fstab backup
+├── selinux/selinux.sh         # SELinux + bootconfig backup
+├── root/
+│   ├── root_magisk.sh         # Magisk + slot selection
+│   ├── root_ksu.sh            # KernelSU + slot selection
+│   └── root_apatch.sh         # APatch + slot selection
+├── twrp/auto_twrp.sh          # TWRP (WIP)
+├── logging/logger.sh          # Runtime logs
+├── reboot/reboot.sh           # Reboot + FDL2
+├── help/help.sh               # Professional help
+├── tools/
+│   ├── bin/
+│   │   ├── windows/
+│   │   │   └── platform-tools/   # adb.exe, fastboot.exe
+│   │   ├── linux/
+│   │   │   └── platform-tools/   # adb, fastboot
+│   │   └── termux/
+│   │       └── spreadtrum_flash/ # spd_dump
+│   ├── downloads/
+│   │   └── cve-2022-38694/       # CVE exploit (RMX3760)
+│   └── modified/                 # Modified tools (ready-to-use)
 ├── setup/
-│   ├── setup_windows.sh # Windows setup (Git Bash/WSL)
-│   └── setup_termux.sh  # Termux setup (development)
+│   ├── setup_windows.bat      # Windows CMD setup
+│   ├── setup_windows.sh       # Windows Git Bash setup
+│   └── setup_termux.sh        # Termux setup
 └── docs/
-    └── Bootchain_Android15_Unlocked.md  # Bootchain documentation (580 lines)
+    ├── Bootchain_Android15_Unlocked.md  # Bootchain (580 lines)
+    └── KOMPATIBILITAS.md                # Compatibility matrix
 ```
 
 ## Thanks To
