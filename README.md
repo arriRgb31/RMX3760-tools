@@ -49,7 +49,7 @@ bash main.sh
 
 ## Reboot — Bootchain
 
-Boot chain Unisoc UMS9230 (dari [Bootchain_Android15_Unlocked.md](~/Bootchain_Android15_Unlocked.md)):
+Boot chain Unisoc UMS9230 (dari [Bootchain_Android15_Unlocked.md](docs/Bootchain_Android15_Unlocked.md)):
 
 ```
 Boot ROM → SPL → SML → LK (Little Kernel) → kernel → Android
@@ -114,9 +114,11 @@ RMX3760-tools/
 ├── logging/logger.sh    # Runtime logs
 ├── reboot/reboot.sh     # Reboot + FDL2
 ├── help/help.sh         # Professional help
-└── setup/
-    ├── setup_windows.sh # Windows setup (Git Bash/WSL)
-    └── setup_termux.sh  # Termux setup (development)
+├── setup/
+│   ├── setup_windows.sh # Windows setup (Git Bash/WSL)
+│   └── setup_termux.sh  # Termux setup (development)
+└── docs/
+    └── Bootchain_Android15_Unlocked.md  # Bootchain documentation (580 lines)
 ```
 
 ## Thanks To

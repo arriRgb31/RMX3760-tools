@@ -4,7 +4,7 @@
 # by@arriRgb31
 #
 # Referensi:
-#   - Bootchain: ~/Bootchain_Android15_Unlocked.md
+#   - Bootchain: docs/Bootchain_Android15_Unlocked.md
 #   - Device tree: https://github.com/arriRgb31/RMX3760
 #   - CVE-2022-38694: https://github.com/TomKing062/CVE-2022-38694_unlock_bootloader
 #   - UnisocBypass: https://github.com/TheGammaSqueeze/UnisocBypass

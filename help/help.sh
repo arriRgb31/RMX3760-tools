@@ -14,7 +14,7 @@ help_full() {
     echo "  terminal akses via SSH."
     echo ""
     echo "  Referensi utama:"
-    echo "    Bootchain: ~/Bootchain_Android15_Unlocked.md"
+    echo "    Bootchain: docs/Bootchain_Android15_Unlocked.md"
     echo "    Device tree: https://github.com/arriRgb31/RMX3760"
     echo ""
     echo "  Tools tersedia:"
