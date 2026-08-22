@@ -1,0 +1,32 @@
+# RMX3760 Tools - .gitignore
+
+# Cache
+cache/
+*.zip
+
+# Backups
+backups/
+
+# Logs
+logs/
+
+# Platform tools (downloaded)
+platform-tools/
+
+# Build outputs
+out/
+*.o
+*.img
+
+# Spreadtrum flash
+spreadtrum_flash/
+spd_dump
+
+# Editor
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
