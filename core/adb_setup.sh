@@ -157,26 +157,6 @@ setup_udev_rules() {
     WAIT_KEY
 }
 
-install_windows_driver() {
-    HEADER "Unisoc Driver (Windows via SSH)"
-    echo "  PC: ssh user@100.115.99.116"
-    echo ""
-    echo "  SPD Driver download:"
-    echo "    https://spreadtrumdriver.com/"
-    echo "    https://mirrors.lolinet.com/software/windows/Unisoc/drivers/"
-    echo ""
-    echo "  Latest: SPD_Driver_R4.24.2705"
-    echo ""
-    echo "  Install Windows:"
-    echo "    1. Download SPD_Driver_R4.24.2705.zip"
-    echo "    2. Extract"
-    echo "    3. Run DPInst64.exe (64-bit) atau DPInst32.exe (32-bit)"
-    echo "    4. Restart PC jika perlu"
-    echo ""
-    echo "  Manual: Device Manager -> Update driver -> Browse -> INF file"
-    WAIT_KEY
-}
-
 detect_unisoc_device() {
     HEADER "Detect Unisoc Device"
     if command -v lsusb &>/dev/null; then
@@ -223,17 +203,16 @@ menu_adb() {
         echo "  3) Install termux-adb (non-root)"
         echo "  4) Install spreadtrum_flash (TomKing)"
         echo "  5) Setup udev rules (Unisoc VID)"
-        echo "  6) Windows driver guide"
-        echo "  7) Detect Unisoc device"
-        echo "  8) Setup All"
-        echo "  9) Kembali"
+        echo "  6) Detect Unisoc device"
+        echo "  7) Setup All"
+        echo "  8) Kembali"
         echo ""
         echo -en "  Pilihan: "
         read -r choice
         case $choice in
             1) download_platform_tools ;; 2) setup_path ;; 3) install_termux_adb ;;
-            4) install_spreadtrum_flash ;; 5) setup_udev_rules ;; 6) install_windows_driver ;;
-            7) detect_unisoc_device ;; 8) setup_all ;; 9) return ;;
+            4) install_spreadtrum_flash ;; 5) setup_udev_rules ;;
+            6) detect_unisoc_device ;; 7) setup_all ;; 8) return ;;
         esac
     done
 }

@@ -9,7 +9,7 @@
 #   - CVE-2022-38694: https://github.com/TomKing062/CVE-2022-38694_unlock_bootloader
 #   - UnisocBypass: https://github.com/TheGammaSqueeze/UnisocBypass
 #
-# Supports: Termux (root/proot), Linux, macOS, Windows (Git Bash/WSL)
+# Supports: Termux (root/proot), Linux, macOS
 
 TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export TOOLS_DIR

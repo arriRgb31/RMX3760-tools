@@ -1,5 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# Platform Detection — Cross-platform (Termux/Linux/macOS/Windows)
+# Platform Detection — Termux / proot / Linux / macOS
 # by@arriRgb31
 
 # Detect OS
@@ -19,7 +19,6 @@ detect_platform() {
             fi
             ;;
         Darwin*)  PLATFORM="macos" ;;
-        CYGWIN*|MINGW*|MSYS*)  PLATFORM="windows" ;;
         *)  PLATFORM="unknown" ;;
     esac
 
@@ -51,14 +50,6 @@ set_platform_paths() {
         macos)
             TOOLS_DIR="$HOME/RMX3760-tools"
             ADB_PATH="/usr/local/bin"
-            ;;
-        windows)
-            TOOLS_DIR="$HOME/RMX3760-tools"
-            ADB_PATH="/mingw64/bin"
-            # Try to find platform-tools
-            if [[ -d "$HOME/platform-tools" ]]; then
-                ADB_PATH="$HOME/platform-tools"
-            fi
             ;;
     esac
     export TOOLS_DIR ADB_PATH
@@ -108,9 +99,6 @@ restart_udev() {
             ;;
         macos)
             # macOS doesn't use udev
-            ;;
-        windows)
-            # Windows uses drivers, not udev
             ;;
     esac
 }
