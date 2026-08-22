@@ -1,24 +1,23 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# Platform Detection — Termux / proot / Linux / macOS
+# Platform Detection — Windows (Git Bash/MSYS2/WSL) + Termux/Linux
 # by@arriRgb31
 
 # Detect OS
 detect_platform() {
     case "$(uname -s)" in
         Linux*)
-            if grep -qi "microsoft\|proot\|termux" /proc/version 2>/dev/null; then
-                if [[ -d "/data/data/com.termux" ]]; then
-                    PLATFORM="termux"
-                elif grep -qi "proot" /proc/version 2>/dev/null; then
-                    PLATFORM="proot"
-                else
-                    PLATFORM="linux"
-                fi
+            if grep -qi "microsoft" /proc/version 2>/dev/null; then
+                PLATFORM="wsl"
+            elif [[ -d "/data/data/com.termux" ]]; then
+                PLATFORM="termux"
+            elif grep -qi "proot" /proc/version 2>/dev/null; then
+                PLATFORM="proot"
             else
                 PLATFORM="linux"
             fi
             ;;
         Darwin*)  PLATFORM="macos" ;;
+        CYGWIN*|MINGW*|MSYS*)  PLATFORM="windows" ;;
         *)  PLATFORM="unknown" ;;
     esac
 
@@ -43,13 +42,20 @@ set_platform_paths() {
             TOOLS_DIR="$HOME/RMX3760-tools"
             ADB_PATH="/usr/bin"
             ;;
-        linux)
+        linux|wsl)
             TOOLS_DIR="$HOME/RMX3760-tools"
             ADB_PATH="/usr/bin"
             ;;
         macos)
             TOOLS_DIR="$HOME/RMX3760-tools"
             ADB_PATH="/usr/local/bin"
+            ;;
+        windows)
+            TOOLS_DIR="$HOME/RMX3760-tools"
+            ADB_PATH="/mingw64/bin"
+            if [[ -d "$HOME/platform-tools" ]]; then
+                ADB_PATH="$HOME/platform-tools"
+            fi
             ;;
     esac
     export TOOLS_DIR ADB_PATH
@@ -99,6 +105,9 @@ restart_udev() {
             ;;
         macos)
             # macOS doesn't use udev
+            ;;
+        windows|wsl)
+            # Windows/WSL uses SPD drivers, not udev
             ;;
     esac
 }

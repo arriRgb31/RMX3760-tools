@@ -9,7 +9,7 @@
 #   - CVE-2022-38694: https://github.com/TomKing062/CVE-2022-38694_unlock_bootloader
 #   - UnisocBypass: https://github.com/TheGammaSqueeze/UnisocBypass
 #
-# Supports: Termux (root/proot), Linux, macOS
+# Supports: Windows (Git Bash/MSYS2/WSL), Termux (root/proot), Linux
 
 TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export TOOLS_DIR
@@ -23,7 +23,7 @@ set_platform_paths
 
 BANNER
 echo -e "  Platform: ${WHITE}$PLATFORM${NC} ($ARCH)"
-echo -e "  Tools:    ${WHITE}$TOOLS_DIR${NC}"
+echo -e "  Target:   ${WHITE}Windows (Git Bash/WSL)${NC}"
 if command -v getprop &>/dev/null; then
     local model=$(getprop ro.product.model 2>/dev/null)
     local android=$(getprop ro.build.version.release 2>/dev/null)
